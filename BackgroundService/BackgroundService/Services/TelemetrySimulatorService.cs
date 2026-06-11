@@ -64,38 +64,6 @@ namespace BackgroundService.Services
                         }
                     };
 
-                    // АЛЕРТ двигуна
-                    if (motorTemp > 85.0)
-                    {
-                        var existingAlert = await _alertsCollection.Find(a => a.DeviceId == "motor_01" && a.IsActive == true).FirstOrDefaultAsync(stoppingToken);
-                        if (existingAlert == null)
-                        {
-                            var alert = new DeviceAlert
-                            {
-                                DeviceId = "motor_01",
-                                Message = $"Перегрів двигуна! Поточна температура: {motorTemp}°C (Критично: >85°C). Перевірте стан двигуна.",
-                                Severity = "Critical",
-                                Timestamp = now,
-                                IsActive = true
-                            };
-                            await _alertsCollection.InsertOneAsync(alert, cancellationToken: stoppingToken);
-                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", alert, stoppingToken);
-                            _logger.LogWarning($"⚠️ [ALERT] motor_01 — перегрів двигуна: {motorTemp}°C");
-                        }
-                    }
-                    if (motorTemp <= 85.0 || motorRpm == 0)
-                    {
-                        var filter = Builders<DeviceAlert>.Filter.And(Builders<DeviceAlert>.Filter.Eq(a => a.DeviceId, "motor_01"), Builders<DeviceAlert>.Filter.Eq(a => a.IsActive, true));
-                        var update = Builders<DeviceAlert>.Update.Set(a => a.IsActive, false);
-                        var options = new FindOneAndUpdateOptions<DeviceAlert> { ReturnDocument = ReturnDocument.After };
-                        var closedAlert = await _alertsCollection.FindOneAndUpdateAsync(filter, update, options, stoppingToken);
-                        if (closedAlert != null)
-                        {
-                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", closedAlert, stoppingToken);
-                            _logger.LogInformation($"✅ [RESOLVED] motor_01 — нормалізація. Алерт закрито.");
-                        }
-                    }
-
                     // МОТОГОДИНИ двигуна
                     if (motorRpm > 0)
                     {
@@ -128,38 +96,6 @@ namespace BackgroundService.Services
                             }
                         }
                     };
-
-                    // АЛЕРТ насоса
-                    if (pumpActive && outletPressure < 5.15)
-                    {
-                        var existingAlert = await _alertsCollection.Find(a => a.DeviceId == "pump_01" && a.IsActive == true).FirstOrDefaultAsync(stoppingToken);
-                        if (existingAlert == null)
-                        {
-                            var alert = new DeviceAlert
-                            {
-                                DeviceId = "pump_01",
-                                Message = $"Падіння тиску на виході насоса! Поточний тиск: {outletPressure} бар (Норма: 5.4). Перевірте привод двигуна.",
-                                Severity = "Warning",
-                                Timestamp = now,
-                                IsActive = true
-                            };
-                            await _alertsCollection.InsertOneAsync(alert, cancellationToken: stoppingToken);
-                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", alert, stoppingToken);
-                            _logger.LogWarning($"⚠️ [ALERT] pump_01 — зафіксовано низький тиск виходу: {outletPressure} bar");
-                        }
-                    }
-                    if (!pumpActive || outletPressure >= 5.15)
-                    {
-                        var filter = Builders<DeviceAlert>.Filter.Eq(a => a.DeviceId, "pump_01") & Builders<DeviceAlert>.Filter.Eq(a => a.IsActive, true);
-                        var update = Builders<DeviceAlert>.Update.Set(a => a.IsActive, false);
-                        var options = new FindOneAndUpdateOptions<DeviceAlert> { ReturnDocument = ReturnDocument.After };
-                        var closedAlert = await _alertsCollection.FindOneAndUpdateAsync(filter, update, options, stoppingToken);
-                        if (closedAlert != null)
-                        {
-                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", closedAlert, stoppingToken);
-                            _logger.LogInformation($"✅ [RESOLVED] pump_01 — нормалізація. Алерт закрито.");
-                        }
-                    }
 
                     // МОТОГОДИНИ насосу
                     if (pumpFlow > 0)
@@ -195,38 +131,6 @@ namespace BackgroundService.Services
                             }
                         }
                     };
-
-                    // АЛЕРТ інвертора
-                    if (temperature > 45.0)
-                    {
-                        var existingAlert = await _alertsCollection.Find(a => a.DeviceId == "inv_solar_02" && a.IsActive == true).FirstOrDefaultAsync(stoppingToken);
-                        if (existingAlert == null)
-                        {
-                            var alert = new DeviceAlert
-                            {
-                                DeviceId = "inv_solar_02",
-                                Message = $"Увага! Перегрів інвертора. Температура: {temperature}°C",
-                                Severity = "Critical",
-                                Timestamp = now,
-                                IsActive = true
-                            };
-                            await _alertsCollection.InsertOneAsync(alert, cancellationToken: stoppingToken);
-                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", alert, stoppingToken);
-                            _logger.LogWarning($"⚠️ [ALERT] inv_solar_02 перегрівся: {temperature}°C.");
-                        }
-                    }
-                    if (temperature <= 45.0)
-                    {
-                        var filter = Builders<DeviceAlert>.Filter.Eq(a => a.DeviceId, "inv_solar_02") & Builders<DeviceAlert>.Filter.Eq(a => a.IsActive, true);
-                        var update = Builders<DeviceAlert>.Update.Set(a => a.IsActive, false);
-                        var options = new FindOneAndUpdateOptions<DeviceAlert> { ReturnDocument = ReturnDocument.After };
-                        var closedAlert = await _alertsCollection.FindOneAndUpdateAsync(filter, update, options, stoppingToken);
-                        if (closedAlert != null)
-                        {
-                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", closedAlert, stoppingToken);
-                            _logger.LogInformation($"✅ [RESOLVED] inv_solar_02 — нормалізація. Алерт закрито.");
-                        }
-                    }
 
                     // --- КОМІРКА BESS (bess_cell_03) ---
                     double soc = 50;
@@ -264,38 +168,6 @@ namespace BackgroundService.Services
                         }
                     };
 
-                    // АЛЕРТ батареї BESS
-                    if (soc < 15.0)
-                    {
-                        var existingAlert = await _alertsCollection.Find(a => a.DeviceId == "bess_cell_03" && a.IsActive == true).FirstOrDefaultAsync(stoppingToken);
-                        if (existingAlert == null)
-                        {
-                            var alert = new DeviceAlert
-                            {
-                                DeviceId = "bess_cell_03",
-                                Message = $"Критичний рівень розряду батареї BESS! Поточний заряд: {soc}%. Необхідне термінове живлення від мережі.",
-                                Severity = "Critical",
-                                Timestamp = now,
-                                IsActive = true
-                            };
-                            await _alertsCollection.InsertOneAsync(alert, cancellationToken: stoppingToken);
-                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", alert, stoppingToken);
-                            _logger.LogError($"⚠️ [CRITICAL ALERT] bess_cell_03 майже розряджена! SoC: {soc}%");
-                        }
-                    }
-                    if (soc > 15.0)
-                    {
-                        var filter = Builders<DeviceAlert>.Filter.Eq(a => a.DeviceId, "bess_cell_03") & Builders<DeviceAlert>.Filter.Eq(a => a.IsActive, true);
-                        var update = Builders<DeviceAlert>.Update.Set(a => a.IsActive, false);
-                        var options = new FindOneAndUpdateOptions<DeviceAlert> { ReturnDocument = ReturnDocument.After };
-                        var closedAlert = await _alertsCollection.FindOneAndUpdateAsync(filter, update, options, stoppingToken);
-                        if (closedAlert != null)
-                        {
-                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", closedAlert, stoppingToken);
-                            _logger.LogInformation($"✅ [RESOLVED] bess_cell_03 — нормалізація. Алерт закрито.");
-                        }
-                    }
-
                     // --- СИЛОВИЙ ТРАНСФОРМАТОР (transformer_04) ---
                     var transOilTemp = Math.Round(45 + (hour % 5) + _random.NextDouble() * 2, 2);
                     var transformerVibration = Math.Round(0.5 + _random.NextDouble() * 0.5, 2);
@@ -313,38 +185,6 @@ namespace BackgroundService.Services
                             }
                         }
                     };
-
-                    // АЛЕРТ трансформатора
-                    if (loadPercentage > 90)
-                    {
-                        var existingAlert = await _alertsCollection.Find(a => a.DeviceId == "transformer_04" && a.IsActive == true).FirstOrDefaultAsync(stoppingToken);
-                        if (existingAlert == null)
-                        {
-                            var alert = new DeviceAlert
-                            {
-                                DeviceId = "transformer_04",
-                                Message = $"Критичне навантаження трансформатора: {loadPercentage}%!",
-                                Severity = "Warning",
-                                Timestamp = now,
-                                IsActive = true
-                            };
-                            await _alertsCollection.InsertOneAsync(alert, cancellationToken: stoppingToken);
-                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", alert, stoppingToken);
-                            _logger.LogWarning($"⚠️ [ALERT] transformer_04 перевантажений! Записано в базу.");
-                        }
-                    }
-                    if (loadPercentage <= 90)
-                    {
-                        var filter = Builders<DeviceAlert>.Filter.Eq(a => a.DeviceId, "transformer_04") & Builders<DeviceAlert>.Filter.Eq(a => a.IsActive, true);
-                        var update = Builders<DeviceAlert>.Update.Set(a => a.IsActive, false);
-                        var options = new FindOneAndUpdateOptions<DeviceAlert> { ReturnDocument = ReturnDocument.After };
-                        var closedAlert = await _alertsCollection.FindOneAndUpdateAsync(filter, update, options, stoppingToken);
-                        if (closedAlert != null)
-                        {
-                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", closedAlert, stoppingToken);
-                            _logger.LogInformation($"✅ [RESOLVED] transformer_04 — нормалізація. Алерт закрито.");
-                        }
-                    }
 
                     // --- ВІДПРАВКА СИРИХ ДАНИХ В БАЗУ ---
                     await _telemetryCollection.InsertManyAsync(new[] {
@@ -466,13 +306,219 @@ namespace BackgroundService.Services
                             }
                         }"),
 
-                        // Беремо останній документ для кожного пристрою (найсвіжіший 15-хвилинний пакет з ковзними метриками)
+                        // Беремо останній документ для кожного пристрою (найсвіжіший хвилинний пакет з ковзними метриками)
                         BsonDocument.Parse("{ $group: { _id: '$deviceId', latest: { $last: '$$ROOT' } } }")
                     });
 
                     // А Г Р Е Г А Ц І Я
                     var aggregationCursor = await _telemetryCollection.AggregateAsync(pipeline, cancellationToken: stoppingToken);
                     var aggregatedDocs = await aggregationCursor.ToListAsync(stoppingToken);
+
+                    // Аналізуємо ковзне вікно
+                    foreach (var res in aggregatedDocs)
+                    {
+                        var latestDoc = res["latest"].AsBsonDocument;
+                        var deviceId = latestDoc["deviceId"].AsString;
+                        var type = latestDoc["deviceType"].AsString;
+                        var rollingMetrics = latestDoc["rollingMetrics"].AsBsonDocument;
+
+                        switch (type)
+                        {
+                            case "motor":
+                                {
+                                    double rollingAvgTemp = rollingMetrics["rollingAvgTemp"].AsDouble;
+
+                                    if (rollingAvgTemp > 85.0)
+                                    {
+                                        var existingAlert = await _alertsCollection.Find(a => a.DeviceId == "motor_01" && a.IsActive == true).FirstOrDefaultAsync(stoppingToken);
+                                        if (existingAlert == null)
+                                        {
+                                            var alert = new DeviceAlert
+                                            {
+                                                DeviceId = "motor_01",
+                                                Message = $"Перегрів двигуна! Поточна температура: {rollingAvgTemp:F2}°C (Критично: >85°C). Перевірте стан двигуна.",
+                                                Severity = "Critical",
+                                                Timestamp = now,
+                                                IsActive = true
+                                            };
+                                            await _alertsCollection.InsertOneAsync(alert, cancellationToken: stoppingToken);
+                                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", alert, stoppingToken);
+                                            _logger.LogWarning($"[ALERT] motor_01 — перегрів двигуна: {rollingAvgTemp}°C");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        var filter = Builders<DeviceAlert>.Filter.And(Builders<DeviceAlert>.Filter.Eq(a => a.DeviceId, deviceId), Builders<DeviceAlert>.Filter.Eq(a => a.IsActive, true));
+                                        var update = Builders<DeviceAlert>.Update.Set(a => a.IsActive, false);
+                                        var options = new FindOneAndUpdateOptions<DeviceAlert> { ReturnDocument = ReturnDocument.After };
+                                        var closedAlert = await _alertsCollection.FindOneAndUpdateAsync(filter, update, options, stoppingToken);
+                                        if (closedAlert != null)
+                                        {
+                                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", closedAlert, stoppingToken);
+                                            _logger.LogInformation($"[RESOLVED] {deviceId} — температура стабілізувалася.");
+                                        }
+                                    }
+
+                                    break;
+                                }
+
+                            case "pump":
+                                {
+                                    double rollingAvgOutletPressure = rollingMetrics["rollingAvgOutletPressure"].AsDouble;
+
+                                    if (rollingAvgOutletPressure < 5.15)
+                                    {
+                                        var existingAlert = await _alertsCollection.Find(a => a.DeviceId == "pump_01" && a.IsActive == true).FirstOrDefaultAsync(stoppingToken);
+                                        if (existingAlert == null)
+                                        {
+                                            var alert = new DeviceAlert
+                                            {
+                                                DeviceId = "pump_01",
+                                                Message = $"Падіння тиску на виході насоса! Поточний тиск: {rollingAvgOutletPressure:F2} бар (Норма: 5.4). Перевірте привод двигуна.",
+                                                Severity = "Warning",
+                                                Timestamp = now,
+                                                IsActive = true
+                                            };
+                                            await _alertsCollection.InsertOneAsync(alert, cancellationToken: stoppingToken);
+                                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", alert, stoppingToken);
+                                            _logger.LogWarning($"[ALERT] pump_01 — зафіксовано низький тиск виходу: {rollingAvgOutletPressure} bar");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        var filter = Builders<DeviceAlert>.Filter.Eq(a => a.DeviceId, "pump_01") & Builders<DeviceAlert>.Filter.Eq(a => a.IsActive, true);
+                                        var update = Builders<DeviceAlert>.Update.Set(a => a.IsActive, false);
+                                        var options = new FindOneAndUpdateOptions<DeviceAlert> { ReturnDocument = ReturnDocument.After };
+                                        var closedAlert = await _alertsCollection.FindOneAndUpdateAsync(filter, update, options, stoppingToken);
+                                        if (closedAlert != null)
+                                        {
+                                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", closedAlert, stoppingToken);
+                                            _logger.LogInformation($"[RESOLVED] pump_01 — нормалізація. Алерт закрито.");
+                                        }
+                                    }
+
+                                    break;
+                                }
+
+                            case "inverter":
+                                {
+                                    double rollingAvgTemp = rollingMetrics["rollingAvgTemp"].AsDouble;
+
+                                    if (rollingAvgTemp > 45.0)
+                                    {
+                                        var existingAlert = await _alertsCollection.Find(a => a.DeviceId == "inv_solar_02" && a.IsActive == true).FirstOrDefaultAsync(stoppingToken);
+                                        if (existingAlert == null)
+                                        {
+                                            var alert = new DeviceAlert
+                                            {
+                                                DeviceId = "inv_solar_02",
+                                                Message = $"Увага! Перегрів інвертора. Температура: {rollingAvgTemp:F2}°C",
+                                                Severity = "Critical",
+                                                Timestamp = now,
+                                                IsActive = true
+                                            };
+                                            await _alertsCollection.InsertOneAsync(alert, cancellationToken: stoppingToken);
+                                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", alert, stoppingToken);
+                                            _logger.LogWarning($"[ALERT] inv_solar_02 перегрівся: {rollingAvgTemp}°C.");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        var filter = Builders<DeviceAlert>.Filter.Eq(a => a.DeviceId, "inv_solar_02") & Builders<DeviceAlert>.Filter.Eq(a => a.IsActive, true);
+                                        var update = Builders<DeviceAlert>.Update.Set(a => a.IsActive, false);
+                                        var options = new FindOneAndUpdateOptions<DeviceAlert> { ReturnDocument = ReturnDocument.After };
+                                        var closedAlert = await _alertsCollection.FindOneAndUpdateAsync(filter, update, options, stoppingToken);
+                                        if (closedAlert != null)
+                                        {
+                                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", closedAlert, stoppingToken);
+                                            _logger.LogInformation($"[RESOLVED] inv_solar_02 — нормалізація. Алерт закрито.");
+                                        }
+                                    }
+
+                                    break;
+                                }
+
+                            case "bess":
+                                {
+                                    double rollingAvgSoc = rollingMetrics["rollingAvgSoc"].AsDouble;
+
+                                    if (rollingAvgSoc <= 15.0)
+                                    {
+                                        var existingAlert = await _alertsCollection.Find(a => a.DeviceId == "bess_cell_03" && a.IsActive == true).FirstOrDefaultAsync(stoppingToken);
+                                        if (existingAlert == null)
+                                        {
+                                            var alert = new DeviceAlert
+                                            {
+                                                DeviceId = "bess_cell_03",
+                                                Message = $"Критичний рівень розряду батареї BESS! Поточний заряд: {rollingAvgSoc:F2}%. Необхідне термінове живлення від мережі.",
+                                                Severity = "Critical",
+                                                Timestamp = now,
+                                                IsActive = true
+                                            };
+                                            await _alertsCollection.InsertOneAsync(alert, cancellationToken: stoppingToken);
+                                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", alert, stoppingToken);
+                                            _logger.LogError($"[CRITICAL ALERT] bess_cell_03 майже розряджена! SoC: {rollingAvgSoc}%");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        var filter = Builders<DeviceAlert>.Filter.Eq(a => a.DeviceId, "bess_cell_03") & Builders<DeviceAlert>.Filter.Eq(a => a.IsActive, true);
+                                        var update = Builders<DeviceAlert>.Update.Set(a => a.IsActive, false);
+                                        var options = new FindOneAndUpdateOptions<DeviceAlert> { ReturnDocument = ReturnDocument.After };
+                                        var closedAlert = await _alertsCollection.FindOneAndUpdateAsync(filter, update, options, stoppingToken);
+                                        if (closedAlert != null)
+                                        {
+                                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", closedAlert, stoppingToken);
+                                            _logger.LogInformation($"[RESOLVED] bess_cell_03 — нормалізація. Алерт закрито.");
+                                        }
+                                    }
+
+                                    break;
+                                }
+
+                            case "transformer":
+                                {
+                                    double rollingAvgLoadPercentage = rollingMetrics["rollingAvgLoadPercentage"].AsDouble;
+
+                                    if (rollingAvgLoadPercentage > 90)
+                                    {
+                                        var existingAlert = await _alertsCollection.Find(a => a.DeviceId == "transformer_04" && a.IsActive == true).FirstOrDefaultAsync(stoppingToken);
+                                        if (existingAlert == null)
+                                        {
+                                            var alert = new DeviceAlert
+                                            {
+                                                DeviceId = "transformer_04",
+                                                Message = $"Критичне навантаження трансформатора: {rollingAvgLoadPercentage:F2}%!",
+                                                Severity = "Warning",
+                                                Timestamp = now,
+                                                IsActive = true
+                                            };
+                                            await _alertsCollection.InsertOneAsync(alert, cancellationToken: stoppingToken);
+                                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", alert, stoppingToken);
+                                            _logger.LogWarning($"[ALERT] transformer_04 перевантажений! Записано в базу.");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        var filter = Builders<DeviceAlert>.Filter.Eq(a => a.DeviceId, "transformer_04") & Builders<DeviceAlert>.Filter.Eq(a => a.IsActive, true);
+                                        var update = Builders<DeviceAlert>.Update.Set(a => a.IsActive, false);
+                                        var options = new FindOneAndUpdateOptions<DeviceAlert> { ReturnDocument = ReturnDocument.After };
+                                        var closedAlert = await _alertsCollection.FindOneAndUpdateAsync(filter, update, options, stoppingToken);
+                                        if (closedAlert != null)
+                                        {
+                                            await _hubContext.Clients.All.SendAsync("ReceiveAlert", closedAlert, stoppingToken);
+                                            _logger.LogInformation($"[RESOLVED] transformer_04 — нормалізація. Алерт закрито.");
+                                        }
+                                    }
+
+                                    break;
+                                }
+
+                            default:
+                                _logger.LogWarning($"Невідомий тип пристрою: {type}");
+                                break;
+                        }
+                    }
 
                     var devicesPayload = aggregatedDocs.Select(res =>
                     {
@@ -534,6 +580,7 @@ namespace BackgroundService.Services
 
                     // На фронтенд через SignalR
                     await _hubContext.Clients.All.SendAsync("ReceiveTelemetry", telemetryPayload, cancellationToken: stoppingToken);
+                    await Task.Delay(1000, stoppingToken);
 
                 }
                 catch (Exception ex)
@@ -541,8 +588,8 @@ namespace BackgroundService.Services
                     _logger.LogError($"Помилка симулятора: {ex.Message}");
                 }
 
-                // Пауза 5 секунд
-                await Task.Delay(5000, cancellationToken: stoppingToken);
+                // Пауза 1 секунду
+                await Task.Delay(1000, cancellationToken: stoppingToken);
             }
         }
     }
