@@ -1,0 +1,41 @@
+.footer_container {
+    background: linear-gradient(47deg,rgb(0, 16, 26) 44%, rgb(15, 34, 30) 100%);
+    min-height: 100px; 
+    width: 100%; 
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    padding: 15px 30px;
+    box-sizing: border-box;
+
+    border-top: 2px solid var(--accent-border);
+
+    opacity: 0;
+    animation: fadeIn 0.6s ease forwards;
+}
+
+.footer-text {
+    margin: 0;
+    text-align: center;
+
+    font-size: 14px;
+    color: var(--text);
+
+    font-family: "MTSWide", 'Times New Roman', Times, serif;
+    line-height: 1.4;
+
+    text-shadow: 0 0 3px rgba(255, 255, 255, 0.2);
+}
+
+@media screen and (max-width: 768px) {
+    .footer_container {
+        min-height: 70px;
+        padding: 15px 20px;
+    }
+
+    .footer-text {
+        font-size: 12px;
+        line-height: 1.5;
+    }
+}

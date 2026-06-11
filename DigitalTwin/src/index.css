@@ -1,0 +1,47 @@
+:root {
+  --text: #ffffff85;
+  --text-h: #ffffff;
+  --bg: #181b22;
+  --border: #e5e4e7;
+  --code-bg: rgba(255, 255, 255, 0.02);
+  --accent: #3aa764;
+  --accent-bg: rgba(12, 72, 45, 0.664);
+  --accent-border: rgba(17, 56, 39, 0.5);
+  --social-bg: rgba(244, 243, 236, 0.5);
+  --shadow:
+    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+
+  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
+  --mono: ui-monospace, Consolas, monospace;
+  
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  @media (max-width: 1024px) {
+    font-size: 16px;
+  }
+}
+
+@keyframes fadeIn {
+    100% {
+        opacity: 1;
+    }
+}
+
+body {
+  margin: 0;
+  opacity: 0;
+  animation: fadeIn 0.6s ease forwards;  
+}
+
+@font-face {
+  font-family: FindSansPro;
+  src: local(FindSansPro), url("/FindSansPro-Medium.ttf");
+}
+
+@font-face {
+  font-family: MTSWide;
+  src: local(MTSWide), url("/MTSWide-Medium-MH5A5AEJ.ttf");
+}
+

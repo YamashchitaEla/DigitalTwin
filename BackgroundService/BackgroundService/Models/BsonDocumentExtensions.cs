@@ -17,14 +17,16 @@ namespace BackgroundService.Models
         }
 
         // Безпечно дістати int
-
         public static int? GetIntMetric(this BsonDocument doc, string field)
         {
             if (doc.TryGetValue(field, out var v) && !v.IsBsonNull)
             {
-                return v.AsInt32;
+                return v.ToInt32();
             }
-            else return null;
+            else
+            {
+                return null;
+            }
         }
 
         // Безпечно дістати ковзну метрику з округленням

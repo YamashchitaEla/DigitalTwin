@@ -2,6 +2,8 @@ using BackgroundService.Models; // Підключаємо папку з наши
 using BackgroundService.Services; // Підключаємо папку з нашими сервісами   
 using MongoDB.Bson;
 using MongoDB.Driver;
+using Microsoft.AspNetCore.Routing;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,28 +12,33 @@ var mongoClient = new MongoClient("mongodb://localhost:27017");
 var database = mongoClient.GetDatabase("DigitalTwinDb");
 builder.Services.AddSingleton(database);
 
+// CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("SignalRCorsPolicy", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:5173", "http://127.0.0.1:5173")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
+
 // Реєстрація SignalR для готовності використання в додатку
 builder.Services.AddSignalR();
 
 // Реєстрація симулятора телеметрії
 builder.Services.AddHostedService<TelemetrySimulatorService>();
 
-// Реєстрація другого сервісу, який читає MongoDB і шле в SignalR 
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
 var app = builder.Build();
+
+app.UseRouting();
+
+app.UseCors("SignalRCorsPolicy");
 
 // Реєстрація маршруту для SignalR хаба
 app.MapHub<TelemetryHubSignalR>("/rtime/telemetry");
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
-app.UseHttpsRedirection();
 
 // Отримати останню точку телеметрії
 app.MapGet("/api/devices/{deviceId}/latest", async (string deviceId, IMongoDatabase db) =>
