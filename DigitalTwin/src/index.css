@@ -33,6 +33,7 @@ body {
   margin: 0;
   opacity: 0;
   animation: fadeIn 0.6s ease forwards;  
+  background: linear-gradient(47deg,rgb(0, 16, 26) 44%, rgb(15, 34, 30) 100%);
 }
 
 @font-face {

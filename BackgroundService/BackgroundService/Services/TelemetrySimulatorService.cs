@@ -13,6 +13,7 @@ namespace BackgroundService.Services
 {
     public class TelemetrySimulatorService : Microsoft.Extensions.Hosting.BackgroundService
     {
+        private readonly string _broker = "localhost";
         private readonly IMongoCollection<BsonDocument> _telemetryCollection;
         private readonly IMongoCollection<DeviceAlert> _alertsCollection;
         private readonly IMongoCollection<BsonDocument> _summaryCollection;
@@ -45,7 +46,7 @@ namespace BackgroundService.Services
                     var hour = now.Hour;
 
                     // --- ДВИГУН (motor_01) ---
-                    var motorTemp = Math.Round(60.2 + _random.NextDouble() * 30, 2);
+                    var motorTemp = Math.Round(85 + _random.NextDouble() * 30, 2);
                     var motorVib = Math.Round(1.5 + _random.NextDouble() * 0.3, 2);
                     var motorRpm = 1470 + _random.Next(0, 10);
                     var motorCurrent = Math.Round(22.4 + (motorVib * 0.4), 2);
@@ -238,22 +239,22 @@ namespace BackgroundService.Services
                                 partitionBy: '$_id.deviceId',
                                 sortBy: { '_id.timeBucket': 1 },
                                 output: {
-                                    rollingAvgTemp: { $avg: '$avg_temperature', window: { range: [-30, 'current'], unit: 'minute' } },
-                                    rollingAvgOilTemp: { $avg: '$avg_oil_temperature', window: { range: [-30, 'current'], unit: 'minute' } },
-                                    rollingMaxVibration: { $max: '$max_vibration', window: { range: [-30, 'current'], unit: 'minute' } },
-                                    rollingMaxCavitation: { $max: '$max_cavitation_index', window: { range: [-30, 'current'], unit: 'minute' } },
-                                    rollingAvgRpm: { $avg: '$avg_rpm', window: { range: [-30, 'current'], unit: 'minute' } },
-                                    rollingAvgFlowRate: { $avg: '$avg_flow_rate', window: { range: [-30, 'current'], unit: 'minute' } },
-                                    rollingAvgInletPressure: { $avg: '$avg_inlet_pressure', window: { range: [-30, 'current'], unit: 'minute' } },
-                                    rollingAvgOutletPressure: { $avg: '$avg_outlet_pressure', window: { range: [-30, 'current'], unit: 'minute' } },
-                                    rollingAvgCurrent: { $avg: '$avg_current', window: { range: [-30, 'current'], unit: 'minute' } },
-                                    rollingAvgVoltageDc: { $avg: '$avg_voltage_dc', window: { range: [-30, 'current'], unit: 'minute' } },
-                                    rollingAvgCurrentDc: { $avg: '$avg_current_dc', window: { range: [-30, 'current'], unit: 'minute' } },
-                                    rollingAvgPowerAc: { $avg: '$avg_power_ac', window: { range: [-30, 'current'], unit: 'minute' } },
-                                    rollingAvgSoc: { $avg: '$avg_soc', window: { range: [-30, 'current'], unit: 'minute' } },
-                                    rollingAvgBessVoltage: { $avg: '$avg_bess_voltage', window: { range: [-30, 'current'], unit: 'minute' } },
-                                    rollingAvgBessCurrent: { $avg: '$avg_bess_current', window: { range: [-30, 'current'], unit: 'minute' } },
-                                    rollingAvgLoadPercentage: { $avg: '$avg_load_percentage', window: { range: [-30, 'current'], unit: 'minute' } }
+                                    rollingAvgTemp: { $avg: '$avg_temperature', window: { range: [-5, 'current'], unit: 'minute' } },
+                                    rollingAvgOilTemp: { $avg: '$avg_oil_temperature', window: { range: [-5, 'current'], unit: 'minute' } },
+                                    rollingMaxVibration: { $max: '$max_vibration', window: { range: [-5, 'current'], unit: 'minute' } },
+                                    rollingMaxCavitation: { $max: '$max_cavitation_index', window: { range: [-5, 'current'], unit: 'minute' } },
+                                    rollingAvgRpm: { $avg: '$avg_rpm', window: { range: [-5, 'current'], unit: 'minute' } },
+                                    rollingAvgFlowRate: { $avg: '$avg_flow_rate', window: { range: [-5, 'current'], unit: 'minute' } },
+                                    rollingAvgInletPressure: { $avg: '$avg_inlet_pressure', window: { range: [-5, 'current'], unit: 'minute' } },
+                                    rollingAvgOutletPressure: { $avg: '$avg_outlet_pressure', window: { range: [-5, 'current'], unit: 'minute' } },
+                                    rollingAvgCurrent: { $avg: '$avg_current', window: { range: [-5, 'current'], unit: 'minute' } },
+                                    rollingAvgVoltageDc: { $avg: '$avg_voltage_dc', window: { range: [-5, 'current'], unit: 'minute' } },
+                                    rollingAvgCurrentDc: { $avg: '$avg_current_dc', window: { range: [-5, 'current'], unit: 'minute' } },
+                                    rollingAvgPowerAc: { $avg: '$avg_power_ac', window: { range: [-5, 'current'], unit: 'minute' } },
+                                    rollingAvgSoc: { $avg: '$avg_soc', window: { range: [-5, 'current'], unit: 'minute' } },
+                                    rollingAvgBessVoltage: { $avg: '$avg_bess_voltage', window: { range: [-5, 'current'], unit: 'minute' } },
+                                    rollingAvgBessCurrent: { $avg: '$avg_bess_current', window: { range: [-5, 'current'], unit: 'minute' } },
+                                    rollingAvgLoadPercentage: { $avg: '$avg_load_percentage', window: { range: [-5, 'current'], unit: 'minute' } }
                                 }
                             }
                         }"),
@@ -310,6 +311,14 @@ namespace BackgroundService.Services
                         BsonDocument.Parse("{ $group: { _id: '$deviceId', latest: { $last: '$$ROOT' } } }")
                     });
 
+                    // АКТИВНІ АЛЕРТИ З БАЗИ
+                    var activeAlerts = await _alertsCollection.Find(a => a.IsActive).ToListAsync();
+
+                    foreach (var alert in activeAlerts)
+                    {
+                        await _hubContext.Clients.All.SendAsync("ReceiveAlert", alert);
+                    }
+
                     // А Г Р Е Г А Ц І Я
                     var aggregationCursor = await _telemetryCollection.AggregateAsync(pipeline, cancellationToken: stoppingToken);
                     var aggregatedDocs = await aggregationCursor.ToListAsync(stoppingToken);
@@ -321,12 +330,11 @@ namespace BackgroundService.Services
                         var deviceId = latestDoc["deviceId"].AsString;
                         var type = latestDoc["deviceType"].AsString;
                         var rollingMetrics = latestDoc["rollingMetrics"].AsBsonDocument;
-
                         switch (type)
                         {
                             case "motor":
                                 {
-                                    double rollingAvgTemp = rollingMetrics["rollingAvgTemp"].AsDouble;
+                                    double rollingAvgTemp = rollingMetrics["rollingAvgTemp"].ToDouble();
 
                                     if (rollingAvgTemp > 85.0)
                                     {

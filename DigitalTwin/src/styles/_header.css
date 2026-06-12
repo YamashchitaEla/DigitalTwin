@@ -1,7 +1,7 @@
 .header_container {
     position: absolute;
     background: linear-gradient(47deg,rgb(0, 16, 26) 44%, rgb(15, 34, 30) 100%);
-    min-height: 100px; 
+    min-height: 50px; 
     width: 100%; 
     align-self: stretch;
     display: flex;
@@ -33,7 +33,7 @@
 
 .header-title {
     margin: 0; 
-    font-size: 26px;
+    font-size: 15px;
     font-weight: bold;
     color: var(--text-h);
     text-shadow: 0 0 5px rgba(255, 255, 255, 0.4);
@@ -46,7 +46,7 @@
 
 .header-subtitle {
     margin: 6px 0 0 0; 
-    font-size: 13px;
+    font-size: 10px;
     color: var(--text);
     font-family: "MTSWide", 'Times New Roman', Times, serif;
     line-height: 1.3;

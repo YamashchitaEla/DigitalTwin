@@ -190,6 +190,8 @@ export default function MainPage({ connection }) {
 
     useEffect(() => {
         if (!connection) return;
+
+        // ТЕЛЕМЕТРІЯ
         const handleTelemetry = (payload) => {
             console.log(payload);
             const timeLabel = new Date().toLocaleTimeString();
@@ -223,7 +225,9 @@ export default function MainPage({ connection }) {
             });
         };
 
+        // АЛЕРТИ
         const handleAlert = (alert) => {
+            console.log(alert);
             setAlerts(prev => {
                 if (alert.isActive) {
                     return [
@@ -231,8 +235,7 @@ export default function MainPage({ connection }) {
                         alert,
                         ...prev.filter(
                             a =>
-                                !(a.deviceId === alert.deviceId
-                                    && a.message === alert.message)
+                                !(a.deviceId === alert.deviceId)
                         )
                     ];
                 }
@@ -256,6 +259,8 @@ export default function MainPage({ connection }) {
                 }
             });
         };
+
+        // МОТОГОДИНИ
         const handleHours = (data) => {
             setDevices(prev => {
                 if (!prev[data.deviceId])
@@ -269,6 +274,7 @@ export default function MainPage({ connection }) {
                 };
             });
         };
+
         connection.on(
             "ReceiveTelemetry",
             handleTelemetry
@@ -300,186 +306,298 @@ export default function MainPage({ connection }) {
         console.log(chartData[activeTab]);
     }, [connection]);
 
+
+    // ОБСЛОГОВУВАННЯ ---------------------------
+    const predictByHours = (hours, limit) => {
+        if (hours == null){
+            return "--";
+        }
+
+        // Час до ТО - різниця між поточними годинами напрацювання та лімітом
+        const remaining = limit - hours;
+        if (remaining <= 0)
+            return "Потрібне ТО";
+
+        if (remaining < 50)
+            return `До ТО: ${remaining.toFixed(1)} м-год (критично)`;
+
+        return `До ТО: ${remaining.toFixed(1)} м-год`;
+    };
+
+    const predictInverter = (temperature, current) => {
+        if (temperature == null || current == null) {
+            return "--";
+        }
+
+        // Вагові коефіціенти для рухвання зносу (температура впливає на 60%, а струм на 40%)
+        // Температура поділена на 120 оскільки беремо частину складового діапазону
+        let wear = (temperature / 50) * 0.6 + (current / 35) * 0.4;
+        // Щоб вага не перевищувала 100% (1)
+        wear = Math.min(wear, 1);
+        // Залишок без зносу і є залишковим здоров'ям
+        const health = (100 - wear * 100).toFixed(1);
+        const months = Math.round(health / 10);
+        return `ТО через ~${months} міс.`;
+    };
+
+    const predictBess = (soc, temperature) => {
+        if (soc == null || temperature == null) {
+            return "--";
+        }
+
+        // Вагові коефіціенти для рухвання зносу
+        let wear = ((100 - soc) / 100) * 0.6 + (temperature / 36) * 0.4;
+        // Щоб вага не перевищувала 100% (1)
+        wear = Math.min(wear, 1);
+        // Залишок без зносу і є залишковим здоров'ям
+        const health = (100 - wear * 100).toFixed(1);
+        const cyclesLeft = Math.round(health * 50);
+        return `Залишок ресурсу: ${cyclesLeft} циклів`;
+    };
+
+    const predictTransformer = (oilTemperature, loadPercentage, vibration) => {
+        if (oilTemperature == null || loadPercentage == null || vibration == null) {
+            return "--";
+        }
+
+        // Вагові коефіціенти для рухвання зносу
+        let wear = (oilTemperature / 51) * 0.5 + (loadPercentage / 95) * 0.3 + (vibration / 3) * 0.2;
+        // Щоб вага не перевищувала 100% (1)
+        wear = Math.min(wear, 1);
+        // Залишок без зносу і є залишковим здоров'ям
+        const health = (100 - wear * 100).toFixed(1);
+        const months = Math.round(health / 8);
+        return `ТО через ~${months} міс.`;
+    };
+
+    const getServicePrediction = (device) => {
+        switch (device.type) {
+            case "motor":
+                return predictByHours(device.hours, 1000);
+
+            case "pump":
+                return predictByHours(device.hours, 800);
+
+            case "inverter":
+                return predictInverter(
+                    device.metrics.temperature,
+                    device.metrics.current_dc
+                );
+
+            case "transformer":
+                return predictTransformer(
+                    device.metrics.oil_temperature,
+                    device.metrics.load_percentage,
+                    device.metrics.vibration
+                );
+
+            case "bess":
+                return predictBess(
+                    device.metrics.soc,
+                    device.metrics.temperature
+                );
+
+            default:
+                return "--";
+        }
+    };
+
     return (
         <div className="main-page">
-            <div className="blob blob-1"></div>
-            <div className="blob blob-2"></div>
-            <div className="blob blob-3"></div>
-            {/* СІТКА ПРИСТРОЇВ */}
-            <div className="devices">
-                <h2 className="devices_grid-title">Технологічна сітка агрегатів</h2>
+
+            {/* ВЕРХНЯ ПАНЕЛЬ */}
+            <div className="top-panel">
+                <h2 className="devices_grid-title">
+                    Технологічна сітка агрегатів
+                </h2>
+
                 <div className="devices_grid-container">
-                    {Object.values(devices).map((dev) => {
-                        return (
-                            <div
-                                key={dev.deviceId}
-                                onClick={() => setActiveTab(dev.deviceId)}
-                                className={`devices_grid-card ${activeTab === dev.deviceId ? 'active' : ''}`}
-                            >
-                                <div className="devices_grid-card-status">
-                                    Стан пристрою:
-                                    <p className={`devices_grid-card-status_info status-${dev.status.toLowerCase()}`}>
-                                        {dev.status}
-                                    </p>
-                                </div>
+                    {Object.values(devices).map((dev) => (
+                        <div
+                            key={dev.deviceId}
+                            onClick={() => setActiveTab(dev.deviceId)}
+                            className={`devices_grid-card ${activeTab === dev.deviceId ? "active" : ""}`}
+                        >
+                            <div className="devices_grid-card-name">
+                                {dev.name}
+                            </div>
 
-                                {/* ДИНАМІЧНІ МЕТРИКИ ЗА ТИПОМ ПРИСТРОЮ */}
-                                <div className="devices_grid-card-metric">
-                                    {DEVICE_METRICS_CONFIG[dev.type]?.map((metric) => (
-                                        <div key={metric.key}>
-                                            {metric.label}:{' '}
-                                            <span>
-                                                {dev.metrics?.[metric.key] ?? '--'} {metric.unit}
-                                            </span>
-                                        </div>
-                                    ))}
-                                </div>
-                                {(dev.type === "motor" || dev.type === "pump") &&
-                                    <div className="devices_grid-card-operaring-hours">
-                                        <span><Clock size={12} /> Напрацювання: </span>
-                                        <span>{(dev.hours ?? 0).toFixed(2)} м-год</span>
+                            <div className="devices_grid-card-status">
+                                Стан:
+
+                                <p className={`devices_grid-card-status_info status-${dev.status.toLowerCase()}`}>
+                                    {dev.status}
+                                </p>
+                            </div>
+
+                            <div className="devices_grid-card-metric">
+                                {DEVICE_METRICS_CONFIG[dev.type]?.map(metric => (
+                                    <div key={metric.key}>
+                                        {metric.label}:{" "}
+                                        <span>
+                                            {dev.metrics?.[metric.key] ?? "--"} {metric.unit}
+                                        </span>
                                     </div>
-                                }
+                                ))}
                             </div>
-                        );
-                    })}
-                </div>
 
-                {/* ГРАФІКИ ТА ГЕЙДЖІ */}
-                <div className="devices_visual">
-                    <h2 className="devices_visual-title">Панель гейджів</h2>
-                    <div className="devices_visual_gaudge">
-                        {!chartData[activeTab] || chartData[activeTab].length === 0 ? (
-                            <div className="devices_visual_gaudge-info_wait">
-                                Очікування пакетів даних з часових рядів MongoDB...
-                            </div>
-                        ) : (
-                            gaudgeConfigs[activeTab]?.map(metric => (
-                                <div key={metric.key} className="devices_visual_gaudge-item">
-                                    <GaugeComponent
-                                        value={devices[activeTab]?.metrics?.[metric.key] ?? 0}
-                                        minValue={metric.min}
-                                        maxValue={metric.max}
-                                        arc={{
-                                            width: 0.15,
-                                            padding: 0.02,
-                                            cornerRounding: 3,
-                                            subArcs: [
-                                                {
-                                                    limit: metric.max,
-                                                    color: metric.color,
-                                                }
-                                            ]
-                                        }}
-                                        labels={{
-                                            valueLabel: {
-                                                style: {
-                                                    fill: '#f8fafc',
-                                                    textShadow: '0 0 6px rgba(255,255,255,0.3)',
-                                                    fontFamily: "FindSansPro",
-                                                    fontSize: 25
-                                                }
-                                            },
-                                            tickLabels: {
-                                                type: "inner",
-                                                defaultTickValueConfig: {
-                                                    style: {
-                                                        fill: '#64748b',
-                                                        fontFamily: "FindSansPro",
-                                                        fontSize: 5
-                                                    }
-                                                }
-                                            }
-                                        }}
-                                    />
-                                    <p className="devices_visual_gaudge-info" style={{ color: metric.color }}>
-                                        {metric.name}
-                                    </p>
+                            {(dev.type === "motor" || dev.type === "pump") && (
+                                <div className="devices_grid-card-operaring-hours">
+                                    <span>
+                                        <Clock size={12} />
+                                        {" "}
+                                        {(dev.hours ?? 0).toFixed(2)} м-год
+                                    </span>
                                 </div>
-                            ))
-                        )}
+                            )}
 
-                    </div>
-
-                    <div className="devices_visual_chart">
-                        <h3 className="devices_visual-title">
-                            Тренди телеметрії: {devices[activeTab]?.name}
-                        </h3>
-                        {!chartData[activeTab] || chartData[activeTab].length === 0 ? (
-                            <div className="devices_visual_chart-wait">
-                                Очікування пакетів даних з часових рядів MongoDB...
+                            <div className="devices_grid-card-TO">
+                                <Clock size={12} />
+                                {" "}
+                                {getServicePrediction(dev)}
                             </div>
-                        ) : (
-
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart
-                                    data={chartData[activeTab]}
-                                    margin={{
-                                        top: 20,
-                                        right: 20,
-                                        left: 0,
-                                        bottom: 20
-                                    }}
-                                >
-                                    <CartesianGrid strokeDasharray="4 4" vertical={false} />
-                                    <XAxis
-                                        dataKey="time"
-                                        tickLine={false}
-                                        angle={-30}
-                                        textAnchor="end"
-                                        height={120}
-                                    />
-                                    <YAxis tickLine={false} axisLine={false} />
-                                    <Legend
-                                        verticalAlign="bottom"
-                                        align="center"
-                                        iconType="circle"
-                                        iconSize={10}
-                                        wrapperStyle={{
-                                            width: "100%",
-                                            left: 0
-                                        }}
-                                        formatter={(value) => (
-                                            <span className="devices_visual_chart-legend-text">
-                                                {value}
-                                            </span>
-                                        )}
-                                    />
-
-                                    {chartConfigs[activeTab]?.map((metric) => (
-                                        <Line
-                                            key={metric.key}
-                                            dataKey={metric.key}
-                                            name={metric.name}
-                                            stroke={metric.color}
-                                            strokeWidth={2.5}
-                                            activeDot={{
-                                                r: 5,
-                                                stroke: metric.color,
-                                                strokeWidth: 2
-                                            }}
-                                            dot={true}
-                                            type="linear"
-                                        />
-                                    ))}
-                                </LineChart>
-                            </ResponsiveContainer>
-                        )}
-                    </div>
+                        </div>
+                    ))}
                 </div>
             </div>
 
-            {/* ЖУРНАЛ ПОДІЙ АЛЕРТІВ */}
-            <div className="alerts">
-                <div className="alerts-container">
+            {/* НИЖНЯ ПАНЕЛЬ */}
+            <div className="dashboard-bottom">
+                {/* ГЕЙДЖІ */}
+                <div className="gauges-panel">
+                    {chartData[activeTab]?.length === 0 ? (
+                        <div className="devices_visual_gaudge-info_wait">
+                            Очікування даних...
+                        </div>
+                    ) : (
+                        gaudgeConfigs[activeTab]?.map(metric => (
+                            <div
+                                key={metric.key}
+                                className="devices_visual_gaudge-item"
+                            >
+                                <GaugeComponent
+                                    value={devices[activeTab]?.metrics?.[metric.key] ?? 0}
+                                    minValue={metric.min}
+                                    maxValue={metric.max}
+                                    arc={{
+                                        width: 0.15,
+                                        padding: 0.02,
+                                        cornerRounding: 3,
+                                        subArcs: [
+                                            {
+                                                limit: metric.max,
+                                                color: metric.color
+                                            }
+                                        ]
+                                    }}
+                                    style={{
+                                        width: "100%",
+                                        height: "90px"
+                                    }}
+                                    labels={{
+                                        valueLabel: {
+                                            style: {
+                                                fill: "#f8fafc",
+                                                fontSize: 25
+                                            }
+                                        },
+                                        tickLabels: {
+                                            type: "inner",
+                                            defaultTickValueConfig: {
+                                                style: {
+                                                    fill: "#64748b",
+                                                    fontSize: 5
+                                                }
+                                            }
+                                        }
+                                    }}
+                                />
+                                <p
+                                    className="devices_visual_gaudge-info"
+                                    style={{ color: metric.color }}
+                                >
+                                    {metric.name}
+                                </p>
+                            </div>
+                        ))
+                    )}
+                </div>
+
+                {/* ГРАФІК */}
+                <div className="chart-panel">
+                    <h3 className="devices_visual-title">
+                        {devices[activeTab]?.name}
+                    </h3>
+
+                    {!chartData[activeTab] || chartData[activeTab].length === 0 ? (
+                        <div className="devices_visual_chart-wait">
+                            Очікування пакетів даних...
+                        </div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={250}>
+                            <LineChart
+                                data={chartData[activeTab]}
+                                margin={{
+                                    top: 30,
+                                    right: 20,
+                                    left: 0,
+                                    bottom: 0
+                                }}
+                            >
+                                <CartesianGrid
+                                    strokeDasharray="4 4"
+                                    vertical={false}
+                                />
+
+                                <XAxis
+                                    dataKey="time"
+                                    tickLine={false}
+                                    angle={-30}
+                                    textAnchor="end"
+                                    height={50}
+                                />
+
+                                <YAxis
+                                    tickLine={false}
+                                    axisLine={false}
+                                />
+
+                                <Legend
+                                    verticalAlign="bottom"
+                                    iconType="circle"
+                                    iconSize={10}
+                                />
+
+                                {chartConfigs[activeTab]?.map(metric => (
+                                    <Line
+                                        key={metric.key}
+                                        dataKey={metric.key}
+                                        name={metric.name}
+                                        stroke={metric.color}
+                                        strokeWidth={2.5}
+                                        dot={true}
+                                        activeDot={{
+                                            r: 5,
+                                            stroke: metric.color
+                                        }}
+                                    />
+                                ))}
+                            </LineChart>
+                        </ResponsiveContainer>
+                    )}
+                </div>
+
+                {/* АЛЕРТИ */}
+                <div className="alerts-panel">
                     <h2 className="alerts-title">
                         <ShieldAlert size={18} />
-                        Живий журнал подій SCADA
+                        Журнал подій
                     </h2>
+
                     <div className="alerts-list">
                         {alerts.length === 0 ? (
                             <div className="alerts-empty">
-                                Аномалій та перевищень порогів не зафіксовано. Система стабільна.
+                                Аномалій не зафіксовано
                             </div>
                         ) : (
                             alerts.map((alert, idx) => (
@@ -506,7 +624,7 @@ export default function MainPage({ connection }) {
                                     </div>
 
                                     <div className="alert-device">
-                                        ID: <span>{alert.deviceId}</span>
+                                        ID: {alert.deviceId}
                                     </div>
                                 </div>
                             ))
