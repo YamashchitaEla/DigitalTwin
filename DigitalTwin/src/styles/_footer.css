@@ -1,6 +1,6 @@
 .footer_container {
     background: linear-gradient(47deg,rgb(0, 16, 26) 44%, rgb(15, 34, 30) 100%);
-    min-height: 100px; 
+    min-height: 50px; 
     width: 100%; 
     display: flex;
     justify-content: center;

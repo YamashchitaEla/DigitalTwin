@@ -4,7 +4,6 @@ using MongoDB.Bson;
 using MongoDB.Driver;
 using Microsoft.AspNetCore.Routing;
 
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Налаштування бази даних
